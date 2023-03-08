@@ -1,12 +1,16 @@
 import random
+import collections
+import matplotlib.pyplot as plt
 
 class Player:
-    def __init__(self, board, loc = 0):
+    def __init__(self, board, p = True):
         self.board = board
-        self.loc = loc
+        self.loc = 0
         self.doubles = 0
         self.jail = False
         self.jail_rolls = 0
+        self.visited = []
+        self.p = p
 
     def roll(self):
         dice1 = random.randint(1, 6)
@@ -17,11 +21,11 @@ class Player:
         else:
             self.doubles = 0
         if self.doubles >= 3:
-            self.go_to_jail()
             self.print_loc()
+            self.go_to_jail()
         else:
             self.loc = (self.loc + dice1 + dice2) % 40
-            self.print_loc(dice1, dice2)
+            self.print_loc()
             if self.check_special():
                 self.special()
             if dbl:
@@ -33,14 +37,13 @@ class Player:
         self.jail_rolls += 1
         if dice1 == dice2 or self.jail_rolls == 3:
             self.loc = (self.loc + dice1 + dice2) % 40
-            self.print_loc(dice1, dice2)
+            self.print_loc()
             if self.check_special():
                 self.special()
             self.jail_rolls = 0
             self.jail = False
         else:
-            self.jail_rolls += 1
-            self.print_loc(dice1, dice2)
+            self.print_loc()
 
     def check_special(self):
         return self.loc in self.board.chance or self.loc in self.board.community_chest or self.loc == 30
@@ -61,7 +64,6 @@ class Player:
                     self.go_to_jail()
                 else:
                     self.loc = card
-                self.print_loc()
         elif self.loc in self.board.community_chest:
             community_chest_actions = [0, "jail", None, None, None, None, None, None, None, None, None, None, None, None, None, None]
             random.shuffle(community_chest_actions)
@@ -71,10 +73,8 @@ class Player:
                     self.go_to_jail()
                 else:
                     self.loc = card
-                self.print_loc()
         else:
             self.go_to_jail()
-            self.print_loc()
 
     def nearest_railroad(self):
         railroads = [5, 15, 25, 35]
@@ -102,17 +102,40 @@ class Player:
         self.doubles = 0
         self.jail_rolls = 0
 
-    def print_loc(self, dice1 = None, dice2 = None):
-        if dice1 and dice2:
-            print("{}+{}={}, {} {}".format(dice1, dice2, dice1 + dice2, self.board.locations[self.loc], self.loc)) 
-        else:
-            print(self.board.locations[self.loc], self.loc)
+    def print_loc(self):
+        self.visited.append(self.loc)
+        if self.p:
+            print(self.loc)
 
     def sim_turn(self):
         if self.jail:
             self.roll_jail()
         else:
             self.roll()
+
+    def count_visits(self):
+        visits = collections.Counter(self.visited)
+        return sorted(visits.items(), key=lambda x: x[0])
+    
+    def plot(self, show=True):
+        visits = self.count_visits()
+        x = [t[0] for t in visits]
+        if len(x) < 40:
+            print("Error: Try again or add more turns")
+        else:
+            y = [t[1] for t in visits]
+            color_list = ['gray', 'brown', 'blue', 'brown', 'gold', 'black', 'cyan', 'darkorange', 'cyan', 'cyan', 'gray', 'purple', 'silver', 'purple', 'purple', 'black', 'orange', 'blue', 'orange', 'orange', 'gray', 'red', 'darkorange', 'red', 'red', 'black', 'yellow', 'yellow', 'silver', 'yellow', 'gray', 'green', 'green', 'blue', 'green', 'black', 'darkorange', 'darkblue', 'gold', 'darkblue']
+            fig, ax = plt.subplots(figsize=(12, 6))  # adjust the figure size as needed
+            ax.bar(x, y, color=color_list)
+            ax.set_ylabel('Number of Visits')
+            ax.set_title('Number of Visits to Each Location on Monopoly Board')
+            plt.subplots_adjust(bottom=0.3)
+            ax.set_xticks(x)
+            labels = [self.board.locations[i] if i < len(self.board.locations) else '' for i in x]
+            ax.set_xticklabels(labels, rotation=90)
+            if show:
+                plt.show()
+
 
 class Location:
     def __init__(self, name, loc):
@@ -170,8 +193,7 @@ class Board:
 
 if __name__ == "__main__":
     board = Board()
-    player1 = Player(board)
-    turns = int(input("Enter number of turns: "))
-    for i in range(turns):
-        print("Turn " + str(i+1))
+    player1 = Player(board, False)
+    for i in range(1000000):
         player1.sim_turn()
+    player1.plot()
