@@ -12,18 +12,19 @@ class Player:
         dice1 = random.randint(1, 6)
         dice2 = random.randint(1, 6)
         dbl = dice1 == dice2
-        if dbl and self.doubles == 2:
-            self.loc = 10
+        if dbl:
+            self.doubles += 1
+        else:
             self.doubles = 0
-            self.jail = True
-            self.print_loc(dice1, dice2)
+        if self.doubles >= 3:
+            self.go_to_jail()
+            self.print_loc()
         else:
             self.loc = (self.loc + dice1 + dice2) % 40
             self.print_loc(dice1, dice2)
             if self.check_special():
                 self.special()
             if dbl:
-                self.doubles += 1
                 self.roll()
 
     def roll_jail(self):
@@ -42,54 +43,70 @@ class Player:
             self.print_loc(dice1, dice2)
 
     def check_special(self):
-        return self.loc in self.board.chance or self.loc in self.board.community_chest
+        return self.loc in self.board.chance or self.loc in self.board.community_chest or self.loc == 30
     
     def special(self):
         if self.loc in self.board.chance:
-            actions = [39, 0, 24, 11, "railroad", "railroad", "utility", "back", "jail", 5]
-            r = random.randint(1, 16)
-            if r < 10:
-                if actions[r] == "railroad":
-                    pass
-                elif actions[r] == "utility":
-                    pass
-                elif actions[r] == "back":
-                    pass
-                elif actions[r] == "jail":
-                    pass
+            chance_actions = [39, 0, 24, 11, "railroad", "railroad", "utility", "back", "jail", 5, None, None, None, None, None, None]
+            random.shuffle(chance_actions)
+            card = chance_actions.pop()
+            if card:
+                if card == "railroad":
+                    self.nearest_railroad()
+                elif card == "utility":
+                    self.nearest_utility()
+                elif card == "back":
+                    self.back_three_spaces()
+                elif card == "jail":
+                    self.go_to_jail()
                 else:
-                    self.loc = actions[r]
-                    self.print_loc()
-        if self.loc in self.board.community_chest:
-            actions = [0, "jail"]
-            r = random.randint(1, 16)
-            if r < 3:
-                if r == 1:
-                    pass
+                    self.loc = card
+                self.print_loc()
+        elif self.loc in self.board.community_chest:
+            community_chest_actions = [0, "jail", None, None, None, None, None, None, None, None, None, None, None, None, None, None]
+            random.shuffle(community_chest_actions)
+            card = community_chest_actions.pop()
+            if card:
+                if card == "jail":
+                    self.go_to_jail()
                 else:
-                    self.loc = actions[r]
-                    self.print_loc()
+                    self.loc = card
+                self.print_loc()
         else:
-            self.jail = True
-            self.loc = 10
+            self.go_to_jail()
+            self.print_loc()
 
     def nearest_railroad(self):
-        pass
+        railroads = [5, 15, 25, 35]
+        if self.loc > 35:
+            self.loc = 5
+        else:
+            for i, loc in enumerate(railroads):
+                if self.loc <= loc <= self.loc + 10:
+                    self.loc = railroads[i]
+                    break
+
     
     def nearest_utility(self):
-        pass
+        if 12 < self.loc <= 28:
+            self.loc = 28
+        else:
+            self.loc = 12
     
-    def back(self):
-        pass
+    def back_three_spaces(self):
+        self.loc = self.loc - 3 % 40
     
     def go_to_jail(self):
-        pass
+        self.loc = 10
+        self.jail = True
+        self.doubles = 0
+        self.jail_rolls = 0
 
     def print_loc(self, dice1 = None, dice2 = None):
         if dice1 and dice2:
-            print("{}+{}={}, {}".format(dice1, dice2, dice1 + dice2, self.board.locations[self.loc])) 
+            print("{}+{}={}, {} {}".format(dice1, dice2, dice1 + dice2, self.board.locations[self.loc], self.loc)) 
         else:
-            print(self.board.locations[self.loc])
+            print(self.board.locations[self.loc], self.loc)
 
     def sim_turn(self):
         if self.jail:
@@ -154,5 +171,7 @@ class Board:
 if __name__ == "__main__":
     board = Board()
     player1 = Player(board)
-    for i in range(5):
+    turns = int(input("Enter number of turns: "))
+    for i in range(turns):
+        print("Turn " + str(i+1))
         player1.sim_turn()
